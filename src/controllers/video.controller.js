@@ -4,6 +4,8 @@ import ApiResponce from "../utils/apiResponce.js";
 import { Video } from "../models/video.models.js";
 import { getS3PresignedUrl } from "../utils/s3.js";
 import logger from "../utils/logger.js";
+import { changeUserPassword } from "./user.controller.js";
+import { Channel } from "../models/channel.model.js";
 
 /**
  * Get presigned S3 URL for video upload
@@ -49,6 +51,15 @@ export const uploadVideoMetadata = asyncHandler(async (req, res) => {
     const { title, description, s3Key, thumbnail, duration } = req.body;
     const userId = req.user?._id;
 
+    // Get user channel id
+    let channelId = null;
+    try {
+        const channel = await Channel.findOne({ userId: userId });
+        channelId = channel ? channel._id : null;
+    } catch (error) {
+        logger.warn('Failed to fetch user channel, proceeding without channel', { error });
+    }
+
     // Validation
     if (!title || !description || !s3Key) {
         throw new ApiError(400, "title, description, and s3Key are required");
@@ -58,25 +69,30 @@ export const uploadVideoMetadata = asyncHandler(async (req, res) => {
         throw new ApiError(401, "User not authenticated");
     }
 
+    // Validate duration
+    if (duration && (typeof duration !== 'number' || duration <= 0)) {
+        throw new ApiError(400, "Duration must be a positive number");
+    }
+
     try {
         // Create video document
         const video = await Video.create({
             videoFile: `${process.env.AWS_S3_BUCKET_URL}/${s3Key}`, // S3 video URL
-            thumbnail: thumbnail || null,
+            thumbnail: thumbnail || null, // Make thumbnail optional for now
             title,
             description,
             duration: duration || 0,
             owner: userId,
-            status: "processing" // Video uploaded, now processing
+            channel: channelId,
+            status: "pending"
         });
 
-        const createdVideo = await video.populate('owner', 'username email');
-
+        logger.info(`Video metadata saved for video ${video._id} by user ${userId}`);
         return res.status(201).json(
-            new ApiResponce(201, createdVideo, "Video metadata saved successfully. Video is being processed.")
+            new ApiResponce(201, video, "Video metadata saved successfully. Video is being processed.")
         );
     } catch (error) {
-        logger.error('Failed to save video metadata', { error });
+        logger.error('Failed to save video metadata', { error: error.message, stack: error.stack });
         throw new ApiError(500, "Failed to save video metadata");
     }
 });
