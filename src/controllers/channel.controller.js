@@ -69,7 +69,8 @@ export const deleteChannel = asyncHandler(async (req, res) => {
     );
 });
 
-export const getChannelInfo = asyncHandler(async (req, res) => {
+
+export const getUserChannel = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const channel = await Channel.findOne({ userId });
 

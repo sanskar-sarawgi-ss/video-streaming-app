@@ -191,6 +191,9 @@ const convertVideoToHlcFormat = async (inputFilePath, videoId, channelId) => {
 };
 
 // Schedule the task to run every 15 minutes
-cron.schedule('*/15 * * * *', convertVideoToHlc);
+if(process.env.ENVIROMENT != 'development'){  
+    cron.schedule('*/15 * * * *', convertVideoToHlc);
+    convertVideoToHlc()
+}
 
 // test => node -c src/task/convertToHlc.js

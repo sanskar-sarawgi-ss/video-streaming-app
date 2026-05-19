@@ -17,11 +17,10 @@ const generateRefreshTokenAndAccessToken = asyncHandler(async (userId) => {
 })
 
 export const registerUser = asyncHandler(async (req, res) => {
+
     const {fullName, email, username, password} = req.body
 
-    if(
-        [fullName, email, username, password].some(field => field?.trim() === '')
-    ){
+    if( [fullName, email, username, password].some(field => field?.trim() === '') ){
         throw new ApiError(400, "Enter Required field")
     }
 
@@ -207,5 +206,11 @@ export const changeUserPassword = asyncHandler (async (req, res) => {
         new ApiResponce("200",
         {},
         "Password Change successFully")
+    )
+})
+
+export const getCurrentUser = asyncHandler(async (req, res) => {
+    return res.status(200).json(
+        new ApiResponce(200, req.user, "Current user fetched successfully")
     )
 })

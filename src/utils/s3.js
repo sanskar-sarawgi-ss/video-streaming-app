@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, HeadBucketRequest$, HeadBucketCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import logger from "./logger.js";
 import fs from "fs";
@@ -135,3 +135,27 @@ export const uploadFileToS3 = async (localFilePath, s3Key) => {
         throw error;
     }
 };
+
+export const getObjectMetaDetail = async (s3Key) => {
+    try {
+        const s3Client = getS3Client()
+        const bucketName = process.env.AWS_S3_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+
+        const command = new HeadObjectCommand({
+            Bucket: bucketName,
+            Key: s3Key
+        })
+
+        objDetail = await s3Client.send(command);
+
+        return true, objDetail;
+    } catch (error) {
+        logger.error(`Failed to get key detail: ${localFilePath}`, { 
+            error: error.message,
+            s3Key 
+        });
+        throw error;
+
+        return false, null;
+    }
+}

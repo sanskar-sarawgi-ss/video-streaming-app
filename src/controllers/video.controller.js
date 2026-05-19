@@ -74,6 +74,7 @@ export const uploadVideoMetadata = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Duration must be a positive number");
     }
 
+    // check if s3 url have video 
     try {
         // Create video document
         const video = await Video.create({
@@ -109,7 +110,6 @@ export const getVideoById = asyncHandler(async (req, res) => {
     }
 
     const video = await Video.findById(videoId)
-        .populate('owner', 'username email avatar');
 
     if (!video) {
         throw new ApiError(404, "Video not found");
@@ -122,6 +122,26 @@ export const getVideoById = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponce(200, video, "Video fetched successfully")
     );
+});
+
+/**
+ * Get user's videos
+ * GET /videos/list/:channelId
+ */
+export const getChannelVideos = asyncHandler(async (req, res) => {
+    const channelId = req.params.channelId;
+
+    try {
+        const videos = await Video.find({ channel: channelId })
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json(
+            new ApiResponce(200, videos, "Channel videos fetched successfully")
+        );
+    } catch (error) {
+        logger.error('Failed to fetch channel videos', { error });
+        throw new ApiError(500, "Failed to fetch videos");
+    }
 });
 
 /**

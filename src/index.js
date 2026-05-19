@@ -1,11 +1,10 @@
-import { app } from './app.js'
-import DbConnect from './db/index.js'
 import dotenv from 'dotenv'
-import logger from './utils/logger.js'
-
 dotenv.config({path: '.env'})
 
-// Load the conversion task after environment is configured
+import { app } from './app.js'
+import DbConnect from './db/index.js'
+import logger from './utils/logger.js'
+
 import('./task/convertToHlc.js').catch(error => {
     logger.error('Failed to load conversion task', { error: error.message });
 });

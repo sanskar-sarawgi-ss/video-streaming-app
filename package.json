@@ -6,12 +6,17 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "sanskar",
   "license": "ISC",
   "devDependencies": {
+    "jest": "^30.4.2",
     "nodemon": "^3.1.14"
+  },
+  "jest": {
+    "setupFiles": ["./test/jest.setup.js"],
+    "testEnvironment": "node"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1035.0",
@@ -30,6 +35,8 @@
     "node-cron": "^4.2.1",
     "sequelize": "^6.37.8",
     "sqlite3": "^6.0.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0"
   }
 }

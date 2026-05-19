@@ -1,9 +1,9 @@
 import multer from "multer";
 import fs from 'fs'
+import logger from "../utils/logger.js";
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-
         if(!fs.existsSync('./public/temp')) {
             fs.mkdirSync('./public/temp', { recursive: true })
         }
