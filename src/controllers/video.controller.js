@@ -2,21 +2,21 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/errorHandler.js";
 import ApiResponce from "../utils/apiResponce.js";
 import { Video } from "../models/video.models.js";
-import { getS3PresignedUrl } from "../utils/s3.js";
 import logger from "../utils/logger.js";
 import { changeUserPassword } from "./user.controller.js";
 import { Channel } from "../models/channel.model.js";
+import { S3Service } from "../services/s3Services/index.js";
 
 /**
  * Get presigned S3 URL for video upload
  * POST /videos/upload-url
  */
 export const getUploadUrl = asyncHandler(async (req, res) => {
-    const { fileName, fileType, fileSize } = req.body;
+    const { fileName, fileType } = req.body;
 
     // Validation
-    if (!fileName || !fileType || !fileSize) {
-        throw new ApiError(400, "fileName, fileType, and fileSize are required");
+    if (!fileName || !fileType) {
+        throw new ApiError(400, "fileName and fileType are required");
     }
 
     // Validate file type (video formats only)
@@ -25,14 +25,8 @@ export const getUploadUrl = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Only video files are allowed");
     }
 
-    // Validate file size (max 500MB)
-    const maxFileSize = 500 * 1024 * 1024;
-    if (fileSize > maxFileSize) {
-        throw new ApiError(400, "File size exceeds maximum limit of 500MB");
-    }
-
     try {
-        const uploadData = await getS3PresignedUrl(fileName, fileType, fileSize);
+        const uploadData = await S3Service.getPresignedUploadUrl(fileName, fileType);
 
         return res.status(200).json(
             new ApiResponce(200, uploadData, "Presigned URL generated successfully")

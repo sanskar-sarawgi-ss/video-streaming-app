@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media App</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://vjs.zencdn.net/8.16.1/video-js.css" rel="stylesheet" />
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-brand">Social Media App</h1>
+            <div class="nav-links">
+                <a href="#" onclick="showPage('home')">Home</a>
+                <a href="#" onclick="showPage('profile')">Profile</a>
+                <a href="#" onclick="showPage('channel')" id="channelLink" style="display: none;">My Channel</a>
+                <button id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="auth-container">
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password:</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+                <p>Don't have an account? <a href="#" onclick="showPage('register')">Register here</a></p>
+            </div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="registerPage" class="page">
+            <div class="auth-container">
+                <h2>Register</h2>
+                <form id="registerForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerFullName">Full Name:</label>
+                        <input type="fullName" id="registerFullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password:</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="avatar">Avatar:</label>
+                        <input type="file" id="avatar" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="coverImage">Cover Image:</label>
+                        <input type="file" id="coverImage" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Register</button>
+                </form>
+                <p>Already have an account? <a href="#" onclick="showPage('login')">Login here</a></p>
+            </div>
+        </div>
+
+        <!-- Home Page -->
+        <div id="homePage" class="page">
+            <h2>Latest Videos</h2>
+            <div id="videosContainer" class="videos-grid">
+                <!-- Videos will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profilePage" class="page">
+            <div class="profile-container">
+                <h2>My Profile</h2>
+                <div id="profileInfo">
+                    <!-- Profile info will be loaded here -->
+                </div>
+                <div class="profile-actions">
+                    <button onclick="showPage('upload')" class="btn btn-primary">Upload Video</button>
+                    <button onclick="showPage('channel')" class="btn btn-secondary">My Channel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Video Page -->
+        <div id="uploadPage" class="page">
+            <div class="upload-container">
+                <h2>Upload Video</h2>
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label for="videoFile">Video File:</label>
+                        <input type="file" id="videoFile" accept="video/*" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoTitle">Title:</label>
+                        <input type="text" id="videoTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="videoDescription">Description:</label>
+                        <textarea id="videoDescription" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+                <div id="uploadProgress" style="display: none;">
+                    <p>Uploading... <span id="progressText">0%</span></p>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Channel Page -->
+        <div id="channelPage" class="page">
+            <div class="channel-container">
+                <h2>My Channel</h2>
+                <div id="channelInfo">
+                    <!-- Channel info will be loaded here -->
+                </div>
+                <div class="channel-videos">
+                    <h3>My Videos</h3>
+                    <div id="channelVideos" class="videos-grid">
+                        <!-- Channel videos will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Player Page -->
+        <div id="videoPlayerPage" class="page">
+            <div class="video-player-container">
+                <div id="videoPlayer">
+                    <!-- Video.js player will be initialized here -->
+                </div>
+                <div id="videoInfo">
+                    <!-- Video info will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/8.16.1/video.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

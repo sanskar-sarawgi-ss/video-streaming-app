@@ -1,0 +1,16 @@
+{
+  "name": "social-media-app-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Social Media App",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["social-media", "video", "frontend"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "express": "^4.18.2"
+  }
+}
