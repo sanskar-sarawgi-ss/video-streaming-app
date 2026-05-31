@@ -97,5 +97,4 @@ if(process.env.ENVIROMENT != 'development'){
 }
 
 convertVideoToHlc()
-
 // test => node -c src/task/convertToHlc.js
