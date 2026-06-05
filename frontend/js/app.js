@@ -1,11 +1,61 @@
 // API Configuration
-const API_BASE_URL = 'http://' + window.location.hostname + '/api';
-// const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://your-production-api.com';
+// const API_BASE_URL = 'http://' + window.location.hostname + '/api';
+const API_BASE_URL =  'http://localhost:8000';
+
+// Socket.IO client connection
+if (typeof io !== 'undefined') {
+    console.log('Socket.IO client library loaded, connecting to server...');
+    const socket = io(API_BASE_URL, { transports: ['websocket'], withCredentials: true });
+    window.socket = socket;
+
+    socket.on('connect', () => {
+        console.log('Socket connected', socket.id);
+        showMessage('Socket connected', 'success');
+    });
+
+    socket.on('connection:success', (data) => {
+        console.log('connection:success', data);
+    });
+
+    socket.on('hello', (data) => {
+        console.log('hello from server', data);
+    });
+
+    socket.on('hello:response', (data) => {
+        console.log('hello response from server', data);
+        showMessage('Socket hello acknowledged', 'success');
+    });
+
+    socket.on('videoRoom:sync', syncRoomPlayer);
+    socket.on('videoControl:sync', syncRoomPlayer);
+
+    // helper to send a hello message to server from console
+    window.sendHello = (msg = 'hello from frontend') => {
+        socket.emit('videoControl:startVideoControlHandler', { 
+            roomId: '123',
+            action: 'play',
+            currentTime: 100
+         });
+    };
+} else {
+    console.warn('Socket.IO client not available. Make sure socket.io.js is loaded.');
+}
 
 // Global state
 let currentUser = null;
 let currentVideoPlayer = null;
 let userHasChannel = false;
+let currentRoomId = null;
+let videoRoomUrl = null;
+let currentRoomVideoId = null;
+let roomModalMode = 'create';
+let applyingRemoteVideoSync = false;
+let lastVideoStateSentAt = 0;
+
+let channelListPage = 1;
+let channelListLoading = false;
+let channelListHasMore = true;
+const CHANNELS_PER_PAGE = 20;
 
 // Utility functions
 function showPage(pageId) {
@@ -33,11 +83,17 @@ function showPage(pageId) {
         case 'home':
             loadHomeVideos();
             break;
+        case 'channels':
+            loadChannelList();
+            break;
         case 'profile':
             loadProfile();
             break;
         case 'channel':
             loadChannel();
+            break;
+        case 'rooms':
+            renderRoomPage();
             break;
     }
 }
@@ -82,6 +138,15 @@ function showMessage(message, type = 'info') {
     }, 5000);
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function getAuthToken() {
     return localStorage.getItem('authToken');
 }
@@ -118,10 +183,18 @@ async function apiRequest(endpoint, options = {}) {
 
     try {
         const response = await fetch(url, config);
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch (parseError) {
+            data = text;
+        }
 
         if (!response.ok) {
-            throw new Error(data.message || 'API request failed');
+            const errorMessage = data?.message || response.statusText || 'API request failed';
+            throw new Error(errorMessage);
         }
 
         return data;
@@ -197,22 +270,6 @@ async function loadHomeVideos() {
         // For now, show placeholder
         const videosContainer = document.getElementById('videosContainer');
         videosContainer.innerHTML = `
-            <div class="video-card" onclick="playVideo('sample-video-id')">
-                <div class="video-thumbnail">
-                    <span>▶️ Sample Video</span>
-                </div>
-                <div class="video-info">
-                    <div class="video-title">Welcome to Social Media App</div>
-                    <div class="video-description">
-                        This is a sample video. Upload your own videos to see them here!
-                        The video player supports HLS streaming for smooth playback.
-                    </div>
-                    <div class="video-meta">
-                        <span>0 views</span>
-                        <span>Sample Channel</span>
-                    </div>
-                </div>
-            </div>
             <div class="video-card">
                 <div class="video-thumbnail">
                     <span>📹 Upload Video</span>
@@ -264,6 +321,316 @@ async function loadProfile() {
 
     // Update navigation after checking profile
     updateNavigation();
+}
+
+function resetChannelList() {
+    channelListPage = 1;
+    channelListLoading = false;
+    channelListHasMore = true;
+    document.getElementById('channelsList').innerHTML = '';
+    document.getElementById('channelsLoading').classList.remove('hidden');
+    document.getElementById('channelsEndMessage').classList.add('hidden');
+}
+
+function renderChannels(channels) {
+    const container = document.getElementById('channelsList');
+    const html = channels.map(channel => `
+        <div class="channel-card" onclick="showChannelDetail('${channel._id}')">
+            <div class="channel-thumbnail">
+                <span>📺 ${channel.channelName}</span>
+            </div>
+            <div class="channel-info">
+                <div class="channel-title">${channel.channelName}</div>
+                <div class="channel-description">${channel.description || 'No description available.'}</div>
+                <div class="channel-meta">
+                    <span>${channel.subscribers || 0} subscribers</span>
+                    <span>${new Date(channel.createdAt).toLocaleDateString()}</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+async function loadChannelList() {
+    if (channelListLoading || !channelListHasMore) {
+        return;
+    }
+
+    const listContainer = document.getElementById('channelsList');
+    const loadingIndicator = document.getElementById('channelsLoading');
+    const endMessage = document.getElementById('channelsEndMessage');
+
+    if (channelListPage === 1) {
+        resetChannelList();
+    }
+
+    channelListLoading = true;
+    loadingIndicator.classList.remove('hidden');
+
+    try {
+        const response = await apiRequest(`/channels/list?page=${channelListPage}&limit=${CHANNELS_PER_PAGE}`);
+        const channels = response.data || [];
+
+        if (channels.length === 0) {
+            channelListHasMore = false;
+            endMessage.classList.remove('hidden');
+            if (channelListPage === 1) {
+                listContainer.innerHTML = '<p>No channels found.</p>';
+            }
+        } else {
+            renderChannels(channels);
+            if (channels.length < CHANNELS_PER_PAGE) {
+                channelListHasMore = false;
+                endMessage.classList.remove('hidden');
+            }
+            channelListPage += 1;
+        }
+    } catch (error) {
+        showMessage('Failed to load channels: ' + error.message, 'error');
+    } finally {
+        channelListLoading = false;
+        loadingIndicator.classList.add('hidden');
+    }
+}
+
+function showChannelDetail(channelId) {
+    showMessage('Channel clicked: ' + channelId + '. Implement channel detail or room join view as needed.', 'info');
+}
+
+function openCreateRoomModal() {
+    roomModalMode = 'create';
+    document.getElementById('roomModalTitle').textContent = 'Create Room';
+    document.getElementById('roomModalSubmit').textContent = 'Create';
+    document.getElementById('createRoomField').classList.remove('hidden');
+    document.getElementById('joinRoomField').classList.add('hidden');
+    document.getElementById('roomVideoId').required = true;
+    document.getElementById('joinRoomId').required = false;
+    document.getElementById('roomForm').reset();
+    document.getElementById('roomModal').classList.remove('hidden');
+    document.getElementById('roomVideoId').focus();
+}
+
+function openJoinRoomModal() {
+    roomModalMode = 'join';
+    document.getElementById('roomModalTitle').textContent = 'Join Room';
+    document.getElementById('roomModalSubmit').textContent = 'Join';
+    document.getElementById('createRoomField').classList.add('hidden');
+    document.getElementById('joinRoomField').classList.remove('hidden');
+    document.getElementById('roomVideoId').required = false;
+    document.getElementById('joinRoomId').required = true;
+    document.getElementById('roomForm').reset();
+    document.getElementById('roomModal').classList.remove('hidden');
+    document.getElementById('joinRoomId').focus();
+}
+
+function closeRoomModal() {
+    document.getElementById('roomModal').classList.add('hidden');
+}
+
+function getSocket() {
+    if (!window.socket || !window.socket.connected) {
+        showMessage('Socket is not connected yet. Please try again in a moment.', 'error');
+        return null;
+    }
+
+    return window.socket;
+}
+
+function emitJoinRoom(roomId) {
+    const socket = getSocket();
+    if (!socket) return false;
+
+    socket.emit('videoControl:joinRoomHandler', {
+        roomId,
+        user_id: currentUser?._id
+    });
+    return true;
+}
+
+async function createRoom(videoId) {
+    const response = await apiRequest('/room/create', {
+        method: 'POST',
+        body: JSON.stringify({ videoId })
+    });
+
+    return response?.data || response;
+}
+
+async function joinRoom(roomId) {
+    const response = await apiRequest('/room/join', {
+        method: 'POST',
+        body: JSON.stringify({ roomId })
+    });
+
+    return response?.data || response;
+}
+
+async function handleRoomFormSubmit(event) {
+    event.preventDefault();
+
+    try {
+        if (roomModalMode === 'create') {
+            const videoId = document.getElementById('roomVideoId').value.trim();
+            if (!videoId) {
+                showMessage('Please enter a video ID.', 'error');
+                return;
+            }
+
+            const room = await createRoom(videoId);
+            const roomId = room.roomId
+            const videoUrl = room.videoUrl
+            if (!roomId) {
+                throw new Error('Room ID missing in create room response');
+            }
+
+            currentRoomVideoId = videoId;
+            enterRoom(roomId, `Room created: ${roomId}`, videoUrl);
+        } else {
+            const roomId = document.getElementById('joinRoomId').value.trim();
+            if (!roomId) {
+                showMessage('Please enter a room ID.', 'error');
+                return;
+            }
+
+            let response = await joinRoom(roomId);
+            console.log(response.videoUrl)
+            enterRoom(roomId, `Joined room: ${roomId}`, response.videoUrl);
+        }
+
+        closeRoomModal();
+    } catch (error) {
+        showMessage('Room action failed: ' + error.message, 'error');
+    }
+}
+
+function enterRoom(roomId, message, videoUrl) {
+    if (!emitJoinRoom(roomId)) return;
+
+    currentRoomId = roomId;
+    videoRoomUrl = videoUrl;
+    showPage('rooms');
+    renderRoomPage();
+    showMessage(message, 'success');
+}
+
+function renderRoomPage() {
+    const activeRoomPanel = document.getElementById('activeRoomPanel');
+    const activeRoomId = document.getElementById('activeRoomId');
+    const roomPlayerSlot = document.getElementById('roomPlayerSlot');
+
+    if (!activeRoomPanel || !roomPlayerSlot) return;
+
+    if (!currentRoomId) {
+        activeRoomPanel.classList.add('hidden');
+        roomPlayerSlot.innerHTML = '<p>Join or create a room to start synced playback.</p>';
+        return;
+    }
+
+    activeRoomPanel.classList.remove('hidden');
+    activeRoomId.textContent = currentRoomId;
+
+    if (!currentVideoPlayer || !document.getElementById('roomVideoPlayerElement')) {
+        roomPlayerSlot.innerHTML = `
+            <video id="roomVideoPlayerElement" class="video-js vjs-default-skin" controls preload="auto">
+                ${videoRoomUrl ? `<source src="${videoRoomUrl}" type="application/x-mpegURL">` : ''}
+            </video>
+        `;
+
+        if (typeof videojs !== 'undefined') {
+            if (currentVideoPlayer) {
+                currentVideoPlayer.dispose();
+            }
+
+            currentVideoPlayer = videojs('roomVideoPlayerElement', {
+                html5: {
+                    hls: {
+                        overrideNative: !videojs.browser.IS_SAFARI
+                    }
+                }
+            });
+
+            bindRoomPlayerEvents();
+        }
+    }
+}
+
+function bindRoomPlayerEvents() {
+    if (!currentVideoPlayer) return;
+
+    ['play', 'pause', 'seeked'].forEach((eventName) => {
+        currentVideoPlayer.on(eventName, sendRoomVideoState);
+    });
+}
+
+function normalizeRoomSyncData(data) {
+    if (typeof data === 'string') {
+        try {
+            return JSON.parse(data);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    return data;
+}
+
+function syncRoomPlayer(data) {
+    const syncData = normalizeRoomSyncData(data);
+    if (!syncData || !currentVideoPlayer) return;
+
+    const currentTime = Number(syncData.currentTime || 0);
+    const isPlaying = Boolean(syncData.isPlaying);
+    const updatedAt = Number(syncData.updatedAt || Date.now());
+    const elapsedSeconds = Math.max(0, (Date.now() - updatedAt) / 1000);
+    const targetTime = isPlaying ? currentTime + elapsedSeconds : currentTime;
+
+    applyingRemoteVideoSync = true;
+
+    if (Math.abs(currentVideoPlayer.currentTime() - targetTime) > 0.75) {
+        currentVideoPlayer.currentTime(targetTime);
+    }
+
+    if (isPlaying && currentVideoPlayer.paused()) {
+        currentVideoPlayer.play().catch((error) => {
+            console.warn('Unable to autoplay synced room player.', error);
+        });
+    } else if (!isPlaying && !currentVideoPlayer.paused()) {
+        currentVideoPlayer.pause();
+    }
+
+    setTimeout(() => {
+        applyingRemoteVideoSync = false;
+    }, 250);
+}
+
+function sendRoomVideoState() {
+    if (!currentRoomId || !currentVideoPlayer || applyingRemoteVideoSync) return;
+
+    const now = Date.now();
+    if (now - lastVideoStateSentAt < 300) return;
+
+    const socket = getSocket();
+    if (!socket) return;
+
+    lastVideoStateSentAt = now;
+    socket.emit('videoControl:videoStateChangeHandler', {
+        roomId: currentRoomId,
+        currentTime: currentVideoPlayer.currentTime(),
+        isPlaying: !currentVideoPlayer.paused()
+    });
+}
+
+async function copyActiveRoomId() {
+    if (!currentRoomId) return;
+
+    try {
+        await navigator.clipboard.writeText(currentRoomId);
+        showMessage('Room ID copied.', 'success');
+    } catch (error) {
+        showMessage('Room ID: ' + currentRoomId, 'info');
+    }
 }
 
 async function loadChannel() {
@@ -559,6 +926,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             showMessage('Please fill all fields', 'error');
         }
     });
+
+    document.getElementById('roomForm').addEventListener('submit', handleRoomFormSubmit);
 });
 
 // Global functions for onclick handlers
@@ -566,6 +935,27 @@ window.showPage = showPage;
 window.logout = logout;
 window.createChannel = createChannel;
 window.playVideo = playVideo;
+window.showChannelDetail = showChannelDetail;
+window.openCreateRoomModal = openCreateRoomModal;
+window.openJoinRoomModal = openJoinRoomModal;
+window.closeRoomModal = closeRoomModal;
+window.copyActiveRoomId = copyActiveRoomId;
+
+window.addEventListener('scroll', () => {
+    if (!document.getElementById('channelsPage').classList.contains('active')) {
+        return;
+    }
+
+    if (channelListLoading || !channelListHasMore) {
+        return;
+    }
+
+    const scrollPosition = window.scrollY + window.innerHeight;
+    const threshold = document.documentElement.scrollHeight - 150;
+    if (scrollPosition >= threshold) {
+        loadChannelList();
+    }
+});
 
 // Session restoration function
 async function restoreSession() {

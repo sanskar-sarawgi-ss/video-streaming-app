@@ -16,7 +16,9 @@
     "nodemon": "^3.1.14"
   },
   "jest": {
-    "setupFiles": ["./test/jest.setup.js"],
+    "setupFiles": [
+      "./test/jest.setup.js"
+    ],
     "testEnvironment": "node"
   },
   "dependencies": {
@@ -29,12 +31,15 @@
     "cros": "^1.1.0",
     "dotenv": "^17.4.2",
     "express": "5.2.1",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.5.0",
     "mongoose-aggregate-paginate-v2": "^1.1.4",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
+    "redis": "^6.0.0",
     "sequelize": "^6.37.8",
+    "socket.io": "^4.8.3",
     "sqlite3": "^6.0.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",

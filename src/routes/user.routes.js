@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, logoutUser, registerUser, refreshAccessToken, changeUserPassword, getCurrentUser} from "../controllers/user.controller.js";
+import { loginUser, logoutUser, registerUser, refreshAccessToken, changeUserPassword, getCurrentUser, subscribeToChannel} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { JwtAuth } from "../middlewares/auth.middlerware.js";
 
@@ -229,5 +229,47 @@ router.route('/change-password').post(changeUserPassword)
  *               $ref: '#/components/schemas/Error'
  */
 router.route('/current').get(JwtAuth, getCurrentUser)
+
+/**
+ * @swagger
+ * /users/subscribe:
+ *   post:
+ *     summary: Subscribe to a channel
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - channelId
+ *             properties:
+ *               channelId:
+ *                 type: string
+ *                 description: ID of the channel to subscribe to
+ *     responses:
+ *       200:
+ *         description: Subscription successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.route('/subscribe').post(JwtAuth, subscribeToChannel)
 
 export default router

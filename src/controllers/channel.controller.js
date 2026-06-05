@@ -82,3 +82,29 @@ export const getUserChannel = asyncHandler(async (req, res) => {
         new ApiResponce(200, channel, "Channel info retrieved successfully")
     );
 });
+
+
+export const getChannelList = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search, name } = req.query;
+
+    const query = {};
+
+    if (search) {
+        query.channelName = { $regex: search, $options: "i" };
+    }
+    if (name) {
+        query.channelName = name;
+    }
+    
+    const channels = await Channel.find(query)
+                                .select("-userId")
+                                .sort({ createdAt: -1 })
+                                .skip((page - 1) * limit)
+                                .limit(parseInt(limit));
+
+
+    res.status(200).json(
+        new ApiResponce(200, channels, "Channel list retrieved successfully")
+    );
+});
+

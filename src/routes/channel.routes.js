@@ -5,6 +5,7 @@ import {
   updateChannel,
   deleteChannel,
   getUserChannel,
+  getChannelList
 } from "../controllers/channel.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
@@ -190,5 +191,40 @@ router.route("/delete").delete(JwtAuth, deleteChannel);
  *               $ref: '#/components/schemas/Error'
  */
 router.route("/info").get(JwtAuth, getUserChannel);
+
+/**
+ * @swagger
+ * /channels/list:
+ *   get:
+ *     summary: Get channel list
+ *     tags: [Channels]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Channel list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Channel'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Channel not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.route("/list").get(getChannelList);
 
 export default router;

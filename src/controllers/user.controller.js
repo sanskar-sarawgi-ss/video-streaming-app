@@ -214,3 +214,29 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
         new ApiResponce(200, req.user, "Current user fetched successfully")
     )
 })
+
+export const subscribeToChannel = asyncHandler(async (req, res) => {
+    const channelId = req.params.channelId
+    const userChannel = await Channel.findByUserId(req.user._id)
+
+    if(Channel.findById(channelId) == null) throw new ApiError(404, "Channel not found")
+    if(userChannel._id === channelId) throw new ApiError(400, "You can't subscribe to yourself");
+
+    if(userChannel.subscribers.includes(req.user._id)) throw new ApiError(400, "You are already subscribed to this channel")
+    
+    const channelOwner = await Channel.findById(channelId).userId
+    await Subscription.InsertOne(
+        {
+            channel: channelOwner
+        },
+        {
+            subscribers: req.user._id
+        },
+        {
+            upsert: true,
+            new: true
+        }
+    )
+
+})
+    
