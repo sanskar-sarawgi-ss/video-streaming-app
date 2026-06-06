@@ -3,6 +3,8 @@ services:
     build: ./
     env_file:
       - .env
+    environment:
+      - REDIS_HOST=redis-db
     volumes:
       - .:/app
       - /app/node_modules

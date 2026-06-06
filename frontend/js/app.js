@@ -1,6 +1,6 @@
 // API Configuration
-// const API_BASE_URL = 'http://' + window.location.hostname + '/api';
-const API_BASE_URL =  'http://localhost:8000';
+const API_BASE_URL = 'http://' + window.location.hostname + '/api';
+// const API_BASE_URL =  'http://localhost:8000';
 
 // Socket.IO client connection
 if (typeof io !== 'undefined') {
